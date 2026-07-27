@@ -5,6 +5,7 @@ import jwtConfig from './config/jwt.config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import {StaffModule} from './modules/staff/staff.module';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { UsersModule } from './modules/users/users.module';
     }),
     PrismaModule,
     AuthModule,
-      UsersModule,
+    UsersModule,
+    StaffModule,
   ],
     controllers: [AppController],
 })
