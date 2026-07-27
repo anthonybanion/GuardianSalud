@@ -15,7 +15,7 @@ import { useApp } from '@/store';
 import { SectionTitle, Badge, KiroNote } from '@/components/ui';
 
 export function TabAgenda() {
-  const { dosis, residentes, medicamentos, personal, aplicarDosis, noAplicarDosis } = useApp();
+  const { dosis, residentes, medicamentos, personal, aplicarDosis, noAplicarDosis, user } = useApp();
   const [omissionModal, setOmissionModal] = useState<string | null>(null);
   const [motivo, setMotivo] = useState('');
   const [reporteGenerado, setReporteGenerado] = useState(false);
@@ -153,7 +153,7 @@ export function TabAgenda() {
                   {isPendiente && (
                     <div className="flex gap-2">
                       <button
-                        onClick={() => aplicarDosis(d.id, 'Diego Pérez')}
+                        onClick={() => aplicarDosis(d.id, user?.nombre ?? 'Cuidador')}
                         className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
                       >
                         <CheckCircle2 size={18} /> APLICADO
