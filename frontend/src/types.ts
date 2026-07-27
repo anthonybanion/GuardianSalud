@@ -1,14 +1,35 @@
+// ─── Tema ─────────────────────────────────────────────────────────────────────
+
 export type Theme = 'light' | 'dark';
+
+// ─── Navegación ───────────────────────────────────────────────────────────────
 
 export type MainTab = 'registros' | 'turnos' | 'dosis' | 'agenda' | 'bitacora';
 
+// ─── Roles ────────────────────────────────────────────────────────────────────
+
+/**
+ * Roles tal como los devuelve el backend.
+ * ADMIN → admin  |  PHYSICIAN → medico  |  NURSE → enfermero
+ */
+export type BackendRole = 'ADMIN' | 'PHYSICIAN' | 'NURSE';
+
+/** Roles internos del frontend (usados en navegación, labels, etc.) */
 export type Role = 'admin' | 'medico' | 'enfermero';
 
-export interface AuthUser {
-  nombre: string;
-  email: string;
-  role: Role;
-}
+/** Mapa de conversión backend → frontend */
+export const BACKEND_ROLE_MAP: Record<BackendRole, Role> = {
+  ADMIN: 'admin',
+  PHYSICIAN: 'medico',
+  NURSE: 'enfermero',
+};
+
+/** Mapa inverso frontend → backend */
+export const FRONTEND_ROLE_MAP: Record<Role, BackendRole> = {
+  admin: 'ADMIN',
+  medico: 'PHYSICIAN',
+  enfermero: 'NURSE',
+};
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: 'Administrador',
@@ -22,7 +43,50 @@ export const ROLE_TABS: Record<Role, MainTab[]> = {
   enfermero: ['agenda'],
 };
 
+// ─── Tipos del backend (UserResponseDto) ─────────────────────────────────────
+
+/**
+ * Usuario tal como lo devuelve la API en /auth/me y /users.
+ * Mapea directamente a UserResponseDto del OpenAPI.
+ */
+export interface BackendUser {
+  id: string;
+  full_name: string;
+  email: string;
+  role: BackendRole;
+  is_active: boolean;
+}
+
+// ─── Usuario autenticado (sesión activa) ──────────────────────────────────────
+
+/**
+ * Usuario que vive en el contexto de la app.
+ * Se construye a partir de BackendUser convirtiendo el role al formato interno.
+ */
+export interface AuthUser {
+  id: string;
+  nombre: string;   // ← full_name del backend
+  email: string;
+  role: Role;       // ← convertido desde BackendRole
+  isActive: boolean;
+}
+
+/** Convierte un BackendUser en el AuthUser que usa el frontend */
+export function backendUserToAuthUser(u: BackendUser): AuthUser {
+  return {
+    id: u.id,
+    nombre: u.full_name,
+    email: u.email,
+    role: BACKEND_ROLE_MAP[u.role],
+    isActive: u.is_active,
+  };
+}
+
+// ─── Sub-tabs ─────────────────────────────────────────────────────────────────
+
 export type SubTabRegistros = 'medicamentos' | 'residentes' | 'personal';
+
+// ─── Dominio clínico ──────────────────────────────────────────────────────────
 
 export type Presentacion = 'Caja' | 'Frasco' | 'Blíster' | 'Ampolleta' | 'Jarabe';
 export type ViaAdmin = 'Oral' | 'Subcutánea/Intramuscular' | 'Tópica' | 'Oftálmica' | 'Inhalada';
