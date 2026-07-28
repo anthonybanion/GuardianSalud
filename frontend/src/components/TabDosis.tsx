@@ -36,6 +36,10 @@ export function TabDosis() {
     fetchMedications,
     staff,
     fetchStaff,
+    backendUsers,
+    fetchUsers,
+    backendResidents,
+    fetchResidents,
     // Usuario autenticado (médico prescriptor)
     user,
   } = useApp();
@@ -61,7 +65,9 @@ export function TabDosis() {
     fetchTreatments();
     if (medications.length === 0) fetchMedications();
     if (staff.length === 0) fetchStaff();
-  }, [fetchTreatments, fetchMedications, fetchStaff, medications.length, staff.length]);
+    if (backendUsers.length === 0) fetchUsers();
+    if (backendResidents.length === 0) fetchResidents();
+  }, [fetchTreatments, fetchMedications, fetchStaff, fetchUsers, fetchResidents, medications.length, staff.length, backendUsers.length, backendResidents.length]);
 
   // Medicamento seleccionado (para validación y display)
   const selectedMedication = useMemo(
@@ -79,8 +85,8 @@ export function TabDosis() {
   const getMedLabel = (m: { commercial_name: string; concentration?: string }) =>
     `${m.commercial_name}${m.concentration ? ` ${m.concentration}` : ''}`;
 
-  const getStaffLabel = (s: { user?: { full_name?: string }; id: string }) =>
-    s.user?.full_name ?? `Staff ${s.id.slice(0, 8)}`;
+  const getStaffLabel = (s: { user?: { full_name?: string }; user_id: string; id: string }) =>
+    s.user?.full_name ?? backendUsers.find((u) => u.id === s.user_id)?.full_name ?? `Staff ${s.id.slice(0, 8)}`;
 
   const resetForm = () =>
     setForm({
@@ -152,14 +158,21 @@ export function TabDosis() {
       <form onSubmit={handleSubmit} className="card mb-6 p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 
-          {/* ID del residente — texto libre hasta conectar /residents */}
-          <Field label="ID del Residente *">
-            <TextInput
+          {/* Residente — select con la lista de /residents */}
+          <Field label="Residente *">
+            <select
               value={form.resident_id}
               onChange={(e) => setForm({ ...form, resident_id: e.target.value })}
-              placeholder="UUID del residente"
+              className="input-base"
               disabled={saving}
-            />
+            >
+              <option value="">Seleccionar residente...</option>
+              {backendResidents.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.nickname}{r.room_location ? ` — ${r.room_location}` : ''}
+                </option>
+              ))}
+            </select>
           </Field>
 
           {/* Medicamento */}
@@ -353,10 +366,11 @@ export function TabDosis() {
               {treatments.map((t) => {
                 const med = medications.find((m) => m.id === t.medication_id);
                 const stf = staff.find((s) => s.id === t.assigned_staff_id);
+                const res = backendResidents.find((r) => r.id === t.resident_id);
                 return (
                   <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                    <td className="px-5 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
-                      {t.resident_id.slice(0, 8)}…
+                    <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">
+                      {res?.nickname ?? `${t.resident_id.slice(0, 8)}…`}
                     </td>
                     <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">
                       {med ? getMedLabel(med) : `${t.medication_id.slice(0, 8)}…`}
@@ -376,7 +390,7 @@ export function TabDosis() {
                       {t.start_time}
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                      {stf ? getStaffLabel(stf) : `${t.assigned_staff_id.slice(0, 8)}…`}
+                      {stf ? getStaffLabel(stf) : backendUsers.find((u) => u.id === t.assigned_staff_id)?.full_name ?? `${t.assigned_staff_id.slice(0, 8)}…`}
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex flex-wrap gap-1">

@@ -82,6 +82,36 @@ export function backendUserToAuthUser(u: BackendUser): AuthUser {
   };
 }
 
+// ─── Residents (backend) ──────────────────────────────────────────────────────
+
+export interface BackendResident {
+  id: string;
+  nickname: string;              // apodo/nombre
+  room_location?: string;
+  medical_condition?: string;
+  diet?: string;
+  allergies?: string;
+  special_care?: string;
+}
+
+export interface CreateResidentDto {
+  nickname: string;              // requerido
+  room_location: string;         // requerido
+  medical_condition?: string;
+  diet?: string;
+  allergies?: string;
+  special_care?: string;
+}
+
+export interface UpdateResidentDto {
+  nickname?: string;
+  room_location?: string;
+  medical_condition?: string;
+  diet?: string;
+  allergies?: string;
+  special_care?: string;
+}
+
 // ─── Shift Assignments (backend) — Cuidadores y Turnos ───────────────────────
 
 /**

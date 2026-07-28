@@ -32,6 +32,8 @@ import type {
   BackendShiftAssignment,
   CreateShiftAssignmentDto,
   UpdateShiftAssignmentDto,
+  BackendResident,
+  CreateResidentDto,
 } from './types';
 import { ROLE_TABS, backendUserToAuthUser } from './types';
 import {
@@ -48,6 +50,7 @@ import { medicationsService } from '@/lib/medicationsService';
 import { doseLogsService } from '@/lib/doseLogsService';
 import { treatmentsService } from '@/lib/treatmentsService';
 import { shiftAssignmentsService } from '@/lib/shiftAssignmentsService';
+import { residentsService } from '@/lib/residentsService';
 import { getToken, clearToken } from '@/lib/api';
 import type { CreateUserDto, UpdateUserDto } from '@/lib/usersService';
 
@@ -121,6 +124,11 @@ interface AppState {
   createShiftAssignment: (dto: CreateShiftAssignmentDto) => Promise<BackendShiftAssignment>;
   updateShiftAssignment: (id: string, dto: UpdateShiftAssignmentDto) => Promise<void>;
   removeShiftAssignment: (id: string) => Promise<void>;
+
+  // Residents (backend /residents)
+  backendResidents: BackendResident[];
+  residentsLoading: boolean;
+  fetchResidents: () => Promise<void>;
 
   // Catálogos clínicos (en memoria hasta integrar endpoints)
   medicamentos: Medicamento[];
@@ -206,6 +214,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [shiftAssignments, setShiftAssignments] = useState<BackendShiftAssignment[]>([]);
   const [shiftAssignmentsLoading, setShiftAssignmentsLoading] = useState(false);
   const [shiftAssignmentsError, setShiftAssignmentsError] = useState<string | null>(null);
+
+  // Residents state (backend /residents)
+  const [backendResidents, setBackendResidents] = useState<BackendResident[]>([]);
+  const [residentsLoading, setResidentsLoading] = useState(false);
 
   // Catálogos clínicos en memoria (residentes y personal legacy — pendiente migrar)
   const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
@@ -474,6 +486,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setShiftAssignments((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  // ── Residents (backend) ───────────────────────────────────────────────────
+
+  const fetchResidents = useCallback(async () => {
+    setResidentsLoading(true);
+    try {
+      const data = await residentsService.getAll();
+      setBackendResidents(data);
+    } catch { /* silencioso */ }
+    finally { setResidentsLoading(false); }
+  }, []);
+
   // ── Catálogos clínicos (en memoria) ──────────────────────────────────────
 
   const addMedicamento: AppState['addMedicamento'] = (m) => {
@@ -619,6 +642,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     createShiftAssignment,
     updateShiftAssignment,
     removeShiftAssignment,
+
+    backendResidents,
+    residentsLoading,
+    fetchResidents,
 
     medicamentos,
     addMedicamento,

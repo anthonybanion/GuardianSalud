@@ -9,8 +9,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useApp } from '@/store';
-import { SectionTitle, Field, Badge, EmptyState } from '@/components/ui';
-import { DOSE_STATUS_LABEL } from '@/types';
+import { SectionTitle, Badge, EmptyState } from '@/components/ui';
 import type { BackendDoseLog } from '@/types';
 
 // ─── Helpers de fecha / hora ─────────────────────────────────────────────────
@@ -57,6 +56,10 @@ export function TabBitacora() {
     fetchDoseLogs,
     staff,
     fetchStaff,
+    backendUsers,
+    fetchUsers,
+    backendResidents,
+    fetchResidents,
     medications,
     fetchMedications,
   } = useApp();
@@ -69,28 +72,32 @@ export function TabBitacora() {
   // Cargar datos al montar
   useEffect(() => {
     fetchDoseLogs();
-    // Cargar staff y medications si están vacíos (para mostrar nombres)
     if (staff.length === 0) fetchStaff();
+    if (backendUsers.length === 0) fetchUsers();
+    if (backendResidents.length === 0) fetchResidents();
     if (medications.length === 0) fetchMedications();
-  }, [fetchDoseLogs, fetchStaff, fetchMedications, staff.length, medications.length]);
+  }, [fetchDoseLogs, fetchStaff, fetchUsers, fetchResidents, fetchMedications, staff.length, backendUsers.length, backendResidents.length, medications.length]);
 
-  // Lookup helpers
-  const getStaffName = (id: string) => {
-    const s = staff.find((x) => x.id === id);
-    return s?.user?.full_name ?? `Staff ${id.slice(0, 8)}`;
+  // Lookup helpers — cruza staff con backendUsers para resolver nombres
+  const getStaffName = (staffId: string) => {
+    const s = staff.find((x) => x.id === staffId);
+    if (s?.user?.full_name) return s.user.full_name;
+    const userId = s?.user_id ?? staffId;
+    return backendUsers.find((u) => u.id === userId)?.full_name ?? '—';
   };
 
-  const getMedName = (log: BackendDoseLog) => {
-    // La relación al medicamento viene a través del treatment_id
-    // Si el backend no incluye relación anidada, mostramos el treatment_id corto
-    return `Tratamiento ${log.treatment_id.slice(0, 8)}…`;
+  const getResidentName = (residentId: string) => {
+    const r = backendResidents.find((x) => x.id === residentId);
+    return r?.nickname ?? `${residentId.slice(0, 8)}…`;
   };
 
-  // Opciones de filtro dinámicas
-  const staffOptions = useMemo(
-    () => staff.map((s) => s.user?.full_name ?? s.id).filter(Boolean),
-    [staff]
-  );
+  // Opciones del filtro de cuidador — nombres resueltos
+  const staffOptions = useMemo(() => {
+    return staff.map((s) => {
+      if (s.user?.full_name) return s.user.full_name;
+      return backendUsers.find((u) => u.id === s.user_id)?.full_name ?? null;
+    }).filter((n): n is string => !!n);
+  }, [staff, backendUsers]);
 
   const ESTADO_OPTIONS = ['Aplicada', 'Omitida', 'Pendiente'];
 
@@ -110,10 +117,9 @@ export function TabBitacora() {
         if (log.status !== labelMap[filtroEstado]) return false;
       }
 
-      // Filtro staff
+      // Filtro staff — cruzar con nombre resuelto
       if (filtroStaff) {
-        const s = staff.find((x) => x.id === log.staff_id);
-        const nombre = s?.user?.full_name ?? '';
+        const nombre = getStaffName(log.staff_id);
         if (nombre !== filtroStaff) return false;
       }
 
@@ -211,7 +217,7 @@ export function TabBitacora() {
 
           {/* Staff */}
           <div>
-            <label className="label-base">Cuidador / Staff</label>
+            <label className="label-base">Cuidador Firmante</label>
             <select
               value={filtroStaff}
               onChange={(e) => setFiltroStaff(e.target.value)}
@@ -265,7 +271,7 @@ export function TabBitacora() {
                 <th className="px-5 py-3 font-semibold">Hora prog.</th>
                 <th className="px-5 py-3 font-semibold">Hora real</th>
                 <th className="px-5 py-3 font-semibold">Tratamiento</th>
-                <th className="px-5 py-3 font-semibold">Residente ID</th>
+                <th className="px-5 py-3 font-semibold">Residente</th>
                 <th className="px-5 py-3 font-semibold">Cuidador</th>
                 <th className="px-5 py-3 font-semibold">Estado</th>
                 <th className="px-5 py-3 font-semibold">Motivo omisión</th>
@@ -286,8 +292,8 @@ export function TabBitacora() {
                   <td className="px-5 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
                     {log.treatment_id.slice(0, 8)}…
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
-                    {log.resident_id.slice(0, 8)}…
+                  <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">
+                    {getResidentName(log.resident_id)}
                   </td>
                   <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">
                     {getStaffName(log.staff_id)}
