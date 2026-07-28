@@ -1,6 +1,22 @@
+<img width="1089" height="768" alt="LogoGS" src="https://github.com/user-attachments/assets/78c71fe1-6d28-469e-a1e3-4af160425dae" />
+
 # GuardiánSalud
 
 Sistema web para el **control y seguimiento de medicamentos** en asilos, estancias y centros de cuidado de pacientes. Garantiza un registro preciso de horarios, dosis, uso del medicamento y asignación por paciente, priorizando la **Privacidad desde el Diseño** (*Privacy by Design*).
+
+---
+## 🎯 Problema
+
+En muchos centros de cuidado la administración de medicamentos continúa apoyándose en registros manuales y comunicación entre turnos.
+
+Esto puede dificultar:
+
+- el seguimiento de las dosis
+- la trazabilidad
+- la consulta del historial
+- la organización del personal
+
+GuardiánSalud busca digitalizar este proceso.
 
 ---
 
@@ -152,8 +168,29 @@ Documentación completa en Swagger: `/docs`
 
 ---
 
-## Equipo
+## 🎯 Problema
 
+En muchos centros de cuidado la administración de medicamentos continúa apoyándose en registros manuales y comunicación entre turnos.
+
+Esto puede dificultar:
+
+- el seguimiento de las dosis
+- la trazabilidad
+- la consulta del historial
+- la organización del personal
+
+GuardiánSalud busca digitalizar este proceso.
+
+---
+
+---
+
+## Equipo
+- Victor Manuel Hernandez
+- Anthony Enrique Bañon Arias
+- Aimé Pamela del Valdez
+- Diego Terraza Sanchez
+  
 Proyecto desarrollado para el **Hackathon Kiro 2026**.
 
 Enfocado en la gestión operativa de medicamentos para centros de cuidado de adultos mayores, con énfasis en seguridad del paciente y privacidad de datos.
