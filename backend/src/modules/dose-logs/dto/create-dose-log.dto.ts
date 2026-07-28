@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsEnum,
+  IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -38,7 +39,7 @@ export class CreateDoseLogDto {
     description: 'Fecha y hora programada de la dosis',
   })
   @IsNotEmpty({ message: 'La fecha programada es obligatoria' })
-  @IsString({ message: 'La fecha programada debe ser un texto' })
+  @IsISO8601({}, { message: 'La fecha programada debe ser una fecha ISO 8601 válida' })
   scheduled_at: string;
 
   @ApiProperty({
@@ -47,7 +48,7 @@ export class CreateDoseLogDto {
     required: false,
   })
   @IsOptional()
-  @IsString({ message: 'La fecha de administración debe ser un texto' })
+  @IsISO8601({}, { message: 'La fecha de administración debe ser una fecha ISO 8601 válida' })
   administered_at?: string;
 
   @ApiProperty({

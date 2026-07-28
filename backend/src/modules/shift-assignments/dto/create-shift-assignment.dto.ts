@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsDateString,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -34,7 +35,7 @@ export class CreateShiftAssignmentDto {
     description: 'Fecha del turno (formato YYYY-MM-DD)',
   })
   @IsNotEmpty({ message: 'La fecha del turno es obligatoria' })
-  @IsString({ message: 'La fecha del turno debe ser un texto' })
+  @IsDateString({}, { message: 'La fecha del turno debe ser una fecha válida (YYYY-MM-DD)' })
   shift_date: string;
 
   @ApiProperty({

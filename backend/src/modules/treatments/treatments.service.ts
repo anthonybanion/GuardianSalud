@@ -126,8 +126,7 @@ export class TreatmentsService {
 
   private parseTime(time: string): Date {
     const [hours, minutes] = time.split(':').map(Number);
-    const date = new Date(1970, 0, 1, hours, minutes, 0);
-    return date;
+    return new Date(Date.UTC(1970, 0, 1, hours, minutes, 0));
   }
 
   private formatTime(date: Date): string {
