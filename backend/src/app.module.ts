@@ -5,21 +5,21 @@ import jwtConfig from './config/jwt.config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
-import {StaffModule} from './modules/staff/staff.module';
+import { StaffModule } from './modules/staff/staff.module';
+import { ResidentsModule } from './modules/residents/residents.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-  load: [
-    jwtConfig,
-  ],
+      load: [jwtConfig],
     }),
     PrismaModule,
     AuthModule,
     UsersModule,
     StaffModule,
+    ResidentsModule,
   ],
-    controllers: [AppController],
+  controllers: [AppController],
 })
 export class AppModule {}
