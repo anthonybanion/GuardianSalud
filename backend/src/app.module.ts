@@ -7,6 +7,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { ResidentsModule } from './modules/residents/residents.module';
+import { MedicationsModule } from './modules/medications/medications.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ResidentsModule } from './modules/residents/residents.module';
     UsersModule,
     StaffModule,
     ResidentsModule,
+    MedicationsModule,
   ],
   controllers: [AppController],
 })
