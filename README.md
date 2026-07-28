@@ -1,9 +1,9 @@
 <img width="1089" height="768" alt="LogoGS" src="https://github.com/user-attachments/assets/78c71fe1-6d28-469e-a1e3-4af160425dae" />
-
+--- 
 # GuardiánSalud
 
 Sistema web para el **control y seguimiento de medicamentos** en asilos, estancias y centros de cuidado de pacientes. Garantiza un registro preciso de horarios, dosis, uso del medicamento y asignación por paciente, priorizando la **Privacidad desde el Diseño** (*Privacy by Design*).
-
+---
 ---
 ## 🎯 Problema
 
@@ -168,18 +168,13 @@ Documentación completa en Swagger: `/docs`
 
 ---
 
-## 🎯 Problema
+## 💡 Futuras mejoras
 
-En muchos centros de cuidado la administración de medicamentos continúa apoyándose en registros manuales y comunicación entre turnos.
-
-Esto puede dificultar:
-
-- el seguimiento de las dosis
-- la trazabilidad
-- la consulta del historial
-- la organización del personal
-
-GuardiánSalud busca digitalizar este proceso.
+- Notificaciones push
+- OCR para medicamentos
+- Portal para familiares
+- Integración con historia clínica
+- IA predictiva
 
 ---
 
