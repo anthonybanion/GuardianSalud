@@ -17,10 +17,24 @@ import type {
   BitacoraEntry,
   AuthUser,
   BackendUser,
+  BackendStaff,
+  CreateStaffDto,
+  UpdateStaffDto,
+  BackendMedication,
+  CreateMedicationDto,
+  UpdateMedicationDto,
+  BackendDoseLog,
+  CreateDoseLogDto,
+  UpdateDoseLogDto,
+  BackendTreatment,
+  CreateTreatmentDto,
+  UpdateTreatmentDto,
+  BackendShiftAssignment,
+  CreateShiftAssignmentDto,
+  UpdateShiftAssignmentDto,
 } from './types';
 import { ROLE_TABS, backendUserToAuthUser } from './types';
 import {
-  seedMedicamentos,
   seedResidentes,
   seedPersonal,
   seedAsignaciones,
@@ -29,6 +43,11 @@ import {
 } from './data';
 import { authService } from '@/lib/authService';
 import { usersService } from '@/lib/usersService';
+import { staffService } from '@/lib/staffService';
+import { medicationsService } from '@/lib/medicationsService';
+import { doseLogsService } from '@/lib/doseLogsService';
+import { treatmentsService } from '@/lib/treatmentsService';
+import { shiftAssignmentsService } from '@/lib/shiftAssignmentsService';
 import { getToken, clearToken } from '@/lib/api';
 import type { CreateUserDto, UpdateUserDto } from '@/lib/usersService';
 
@@ -57,6 +76,51 @@ interface AppState {
   createUser: (dto: CreateUserDto) => Promise<void>;
   updateUser: (id: string, dto: UpdateUserDto) => Promise<void>;
   removeUser: (id: string) => Promise<void>;
+
+  // Staff — Personal / Cuidadores (conectado a /staff)
+  staff: BackendStaff[];
+  staffLoading: boolean;
+  staffError: string | null;
+  fetchStaff: () => Promise<void>;
+  createStaff: (dto: CreateStaffDto) => Promise<BackendStaff>;
+  updateStaff: (id: string, dto: UpdateStaffDto) => Promise<void>;
+  removeStaff: (id: string) => Promise<void>;
+
+  // Medications — Medicamentos / Insumos (conectado a /medications)
+  medications: BackendMedication[];
+  medicationsLoading: boolean;
+  medicationsError: string | null;
+  fetchMedications: () => Promise<void>;
+  createMedication: (dto: CreateMedicationDto) => Promise<BackendMedication>;
+  updateMedication: (id: string, dto: UpdateMedicationDto) => Promise<void>;
+  removeMedication: (id: string) => Promise<void>;
+
+  // Dose Logs — Bitácora (conectado a /dose-logs)
+  doseLogs: BackendDoseLog[];
+  doseLogsLoading: boolean;
+  doseLogsError: string | null;
+  fetchDoseLogs: () => Promise<void>;
+  createDoseLog: (dto: CreateDoseLogDto) => Promise<BackendDoseLog>;
+  updateDoseLog: (id: string, dto: UpdateDoseLogDto) => Promise<void>;
+  removeDoseLog: (id: string) => Promise<void>;
+
+  // Treatments — Asignar Dosis (conectado a /treatments)
+  treatments: BackendTreatment[];
+  treatmentsLoading: boolean;
+  treatmentsError: string | null;
+  fetchTreatments: () => Promise<void>;
+  createTreatment: (dto: CreateTreatmentDto) => Promise<BackendTreatment>;
+  updateTreatment: (id: string, dto: UpdateTreatmentDto) => Promise<void>;
+  removeTreatment: (id: string) => Promise<void>;
+
+  // Shift Assignments — Cuidadores y Turnos (conectado a /shift-assignments)
+  shiftAssignments: BackendShiftAssignment[];
+  shiftAssignmentsLoading: boolean;
+  shiftAssignmentsError: string | null;
+  fetchShiftAssignments: () => Promise<void>;
+  createShiftAssignment: (dto: CreateShiftAssignmentDto) => Promise<BackendShiftAssignment>;
+  updateShiftAssignment: (id: string, dto: UpdateShiftAssignmentDto) => Promise<void>;
+  removeShiftAssignment: (id: string) => Promise<void>;
 
   // Catálogos clínicos (en memoria hasta integrar endpoints)
   medicamentos: Medicamento[];
@@ -118,8 +182,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
 
-  // Catálogos clínicos (en memoria)
-  const [medicamentos, setMedicamentos] = useState<Medicamento[]>(seedMedicamentos);
+  // Staff state
+  const [staff, setStaff] = useState<BackendStaff[]>([]);
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffError, setStaffError] = useState<string | null>(null);
+
+  // Medications state
+  const [medications, setMedications] = useState<BackendMedication[]>([]);
+  const [medicationsLoading, setMedicationsLoading] = useState(false);
+  const [medicationsError, setMedicationsError] = useState<string | null>(null);
+
+  // Dose Logs state
+  const [doseLogs, setDoseLogs] = useState<BackendDoseLog[]>([]);
+  const [doseLogsLoading, setDoseLogsLoading] = useState(false);
+  const [doseLogsError, setDoseLogsError] = useState<string | null>(null);
+
+  // Treatments state
+  const [treatments, setTreatments] = useState<BackendTreatment[]>([]);
+  const [treatmentsLoading, setTreatmentsLoading] = useState(false);
+  const [treatmentsError, setTreatmentsError] = useState<string | null>(null);
+
+  // Shift Assignments state
+  const [shiftAssignments, setShiftAssignments] = useState<BackendShiftAssignment[]>([]);
+  const [shiftAssignmentsLoading, setShiftAssignmentsLoading] = useState(false);
+  const [shiftAssignmentsError, setShiftAssignmentsError] = useState<string | null>(null);
+
+  // Catálogos clínicos en memoria (residentes y personal legacy — pendiente migrar)
+  const [medicamentos, setMedicamentos] = useState<Medicamento[]>([]);
   const [residentes, setResidentes] = useState<Residente[]>(seedResidentes);
   const [personal, setPersonal] = useState<Personal[]>(seedPersonal);
   const [asignaciones, setAsignaciones] = useState<AsignacionTurno[]>(seedAsignaciones);
@@ -187,6 +276,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(SESSION_KEY);
     setActiveTab('registros');
     setBackendUsers([]);
+    setStaff([]);
   }, []);
 
   // ── Usuarios backend ──────────────────────────────────────────────────────
@@ -217,6 +307,171 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeUser = useCallback(async (id: string) => {
     await usersService.remove(id);
     setBackendUsers((prev) => prev.filter((u) => u.id !== id));
+  }, []);
+
+  // ── Staff ─────────────────────────────────────────────────────────────────
+
+  const fetchStaff = useCallback(async () => {
+    setStaffLoading(true);
+    setStaffError(null);
+    try {
+      const data = await staffService.getAll();
+      setStaff(data);
+    } catch (err) {
+      setStaffError(err instanceof Error ? err.message : 'Error al cargar personal');
+    } finally {
+      setStaffLoading(false);
+    }
+  }, []);
+
+  const createStaff = useCallback(async (dto: CreateStaffDto): Promise<BackendStaff> => {
+    const created = await staffService.create(dto);
+    setStaff((prev) => [created, ...prev]);
+    return created;
+  }, []);
+
+  const updateStaff = useCallback(async (id: string, dto: UpdateStaffDto) => {
+    const updated = await staffService.update(id, dto);
+    setStaff((prev) => prev.map((s) => (s.id === id ? updated : s)));
+  }, []);
+
+  const removeStaff = useCallback(async (id: string) => {
+    await staffService.remove(id);
+    setStaff((prev) => prev.filter((s) => s.id !== id));
+  }, []);
+
+  // ── Medications ───────────────────────────────────────────────────────────
+
+  const fetchMedications = useCallback(async () => {
+    setMedicationsLoading(true);
+    setMedicationsError(null);
+    try {
+      const data = await medicationsService.getAll();
+      setMedications(data);
+    } catch (err) {
+      setMedicationsError(err instanceof Error ? err.message : 'Error al cargar medicamentos');
+    } finally {
+      setMedicationsLoading(false);
+    }
+  }, []);
+
+  const createMedication = useCallback(async (dto: CreateMedicationDto): Promise<BackendMedication> => {
+    const created = await medicationsService.create(dto);
+    setMedications((prev) => [created, ...prev]);
+    return created;
+  }, []);
+
+  const updateMedication = useCallback(async (id: string, dto: UpdateMedicationDto) => {
+    const updated = await medicationsService.update(id, dto);
+    setMedications((prev) => prev.map((m) => (m.id === id ? updated : m)));
+  }, []);
+
+  const removeMedication = useCallback(async (id: string) => {
+    await medicationsService.remove(id);
+    setMedications((prev) => prev.filter((m) => m.id !== id));
+  }, []);
+
+  // ── Dose Logs ─────────────────────────────────────────────────────────────
+
+  const fetchDoseLogs = useCallback(async () => {
+    setDoseLogsLoading(true);
+    setDoseLogsError(null);
+    try {
+      const data = await doseLogsService.getAll();
+      setDoseLogs(data);
+    } catch (err) {
+      setDoseLogsError(err instanceof Error ? err.message : 'Error al cargar bitácora');
+    } finally {
+      setDoseLogsLoading(false);
+    }
+  }, []);
+
+  const createDoseLog = useCallback(async (dto: CreateDoseLogDto): Promise<BackendDoseLog> => {
+    const created = await doseLogsService.create(dto);
+    setDoseLogs((prev) => [created, ...prev]);
+    return created;
+  }, []);
+
+  const updateDoseLog = useCallback(async (id: string, dto: UpdateDoseLogDto) => {
+    const updated = await doseLogsService.update(id, dto);
+    setDoseLogs((prev) => prev.map((d) => (d.id === id ? updated : d)));
+  }, []);
+
+  const removeDoseLog = useCallback(async (id: string) => {
+    await doseLogsService.remove(id);
+    setDoseLogs((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+
+  // ── Treatments ────────────────────────────────────────────────────────────
+
+  const fetchTreatments = useCallback(async () => {
+    setTreatmentsLoading(true);
+    setTreatmentsError(null);
+    try {
+      const data = await treatmentsService.getAll();
+      setTreatments(data);
+    } catch (err) {
+      setTreatmentsError(err instanceof Error ? err.message : 'Error al cargar tratamientos');
+    } finally {
+      setTreatmentsLoading(false);
+    }
+  }, []);
+
+  const createTreatment = useCallback(async (dto: CreateTreatmentDto): Promise<BackendTreatment> => {
+    const created = await treatmentsService.create(dto);
+    setTreatments((prev) => [created, ...prev]);
+    return created;
+  }, []);
+
+  const updateTreatment = useCallback(async (id: string, dto: UpdateTreatmentDto) => {
+    const updated = await treatmentsService.update(id, dto);
+    setTreatments((prev) => prev.map((t) => (t.id === id ? updated : t)));
+  }, []);
+
+  const removeTreatment = useCallback(async (id: string) => {
+    await treatmentsService.remove(id);
+    setTreatments((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // ── Shift Assignments ─────────────────────────────────────────────────────
+
+  const fetchShiftAssignments = useCallback(async () => {
+    setShiftAssignmentsLoading(true);
+    setShiftAssignmentsError(null);
+    try {
+      const data = await shiftAssignmentsService.getAll();
+      setShiftAssignments(data);
+    } catch (err) {
+      setShiftAssignmentsError(
+        err instanceof Error ? err.message : 'Error al cargar turnos',
+      );
+    } finally {
+      setShiftAssignmentsLoading(false);
+    }
+  }, []);
+
+  const createShiftAssignment = useCallback(
+    async (dto: CreateShiftAssignmentDto): Promise<BackendShiftAssignment> => {
+      const created = await shiftAssignmentsService.create(dto);
+      setShiftAssignments((prev) => [created, ...prev]);
+      return created;
+    },
+    [],
+  );
+
+  const updateShiftAssignment = useCallback(
+    async (id: string, dto: UpdateShiftAssignmentDto) => {
+      const updated = await shiftAssignmentsService.update(id, dto);
+      setShiftAssignments((prev) =>
+        prev.map((s) => (s.id === id ? updated : s)),
+      );
+    },
+    [],
+  );
+
+  const removeShiftAssignment = useCallback(async (id: string) => {
+    await shiftAssignmentsService.remove(id);
+    setShiftAssignments((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
   // ── Catálogos clínicos (en memoria) ──────────────────────────────────────
@@ -324,6 +579,46 @@ export function AppProvider({ children }: { children: ReactNode }) {
     createUser,
     updateUser,
     removeUser,
+
+    staff,
+    staffLoading,
+    staffError,
+    fetchStaff,
+    createStaff,
+    updateStaff,
+    removeStaff,
+
+    medications,
+    medicationsLoading,
+    medicationsError,
+    fetchMedications,
+    createMedication,
+    updateMedication,
+    removeMedication,
+
+    doseLogs,
+    doseLogsLoading,
+    doseLogsError,
+    fetchDoseLogs,
+    createDoseLog,
+    updateDoseLog,
+    removeDoseLog,
+
+    treatments,
+    treatmentsLoading,
+    treatmentsError,
+    fetchTreatments,
+    createTreatment,
+    updateTreatment,
+    removeTreatment,
+
+    shiftAssignments,
+    shiftAssignmentsLoading,
+    shiftAssignmentsError,
+    fetchShiftAssignments,
+    createShiftAssignment,
+    updateShiftAssignment,
+    removeShiftAssignment,
 
     medicamentos,
     addMedicamento,

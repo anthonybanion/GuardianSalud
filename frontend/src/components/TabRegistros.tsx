@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Pill, Users, Stethoscope, Save, ScanLine, AlertTriangle, Plus, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Pill, Users, Stethoscope, Save, AlertTriangle, Plus, X, Loader2, Trash2, RefreshCw } from 'lucide-react';
 import { useApp } from '@/store';
 import {
   SectionTitle,
@@ -7,7 +7,6 @@ import {
   TextInput,
   Select,
   Badge,
-  StockBadge,
   EmptyState,
   KiroNote,
 } from '@/components/ui';
@@ -16,11 +15,16 @@ import {
   VIAS,
   CONDICIONES,
   DIETAS,
-  ROLES,
-  TURNOS,
   ESPECIALIDADES_DISPONIBLES,
 } from '@/data';
-import type { SubTabRegistros, Presentacion, ViaAdmin } from '@/types';
+import type { SubTabRegistros, BackendShift } from '@/types';
+import { BACKEND_SHIFT_LABEL } from '@/types';
+
+const TURNOS_CONFIG: { key: BackendShift; label: string }[] = [
+  { key: 'MORNING',   label: 'Matutino' },
+  { key: 'AFTERNOON', label: 'Vespertino' },
+  { key: 'NIGHT',     label: 'Nocturno' },
+];
 
 const SUBTABS: { id: SubTabRegistros; label: string; icon: typeof Pill }[] = [
   { id: 'medicamentos', label: 'Medicamentos / Insumos', icon: Pill },
@@ -63,72 +67,146 @@ export function TabRegistros() {
 /* =================== MEDICAMENTOS =================== */
 
 function MedicamentosPanel() {
-  const { medicamentos, addMedicamento } = useApp();
-  const [form, setForm] = useState({
-    nombre: '',
-    formula: '',
-    concentracion: '',
-    presentacion: '' as Presentacion | '',
-    via: '' as ViaAdmin | '',
-    stock: '',
-  });
-  const [saved, setSaved] = useState(false);
+  const {
+    medications,
+    medicationsLoading,
+    medicationsError,
+    fetchMedications,
+    createMedication,
+    removeMedication,
+  } = useApp();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.nombre || !form.formula || !form.presentacion || !form.via) return;
-    addMedicamento({
-      nombre: form.nombre,
-      formula: form.formula,
-      concentracion: form.concentracion,
-      presentacion: form.presentacion as Presentacion,
-      via: form.via as ViaAdmin,
-      stock: Number(form.stock) || 0,
+  const [form, setForm] = useState({
+    commercial_name: '',
+    active_ingredient: '',
+    concentration: '',
+    presentation: '',
+    administration_route: '',
+    current_stock: '',
+    minimum_stock: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Cargar medicamentos al montar
+  useEffect(() => {
+    fetchMedications();
+  }, [fetchMedications]);
+
+  const resetForm = () =>
+    setForm({
+      commercial_name: '',
+      active_ingredient: '',
+      concentration: '',
+      presentation: '',
+      administration_route: '',
+      current_stock: '',
+      minimum_stock: '',
     });
-    setForm({ nombre: '', formula: '', concentracion: '', presentacion: '', via: '', stock: '' });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.commercial_name.trim() || !form.administration_route.trim()) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await createMedication({
+        commercial_name: form.commercial_name.trim(),
+        active_ingredient: form.active_ingredient.trim() || undefined,
+        concentration: form.concentration.trim() || undefined,
+        presentation: form.presentation.trim() || undefined,
+        administration_route: form.administration_route.trim(),
+        current_stock: form.current_stock ? Number(form.current_stock) : undefined,
+        minimum_stock: form.minimum_stock ? Number(form.minimum_stock) : undefined,
+      });
+      resetForm();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Error al guardar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Eliminar este medicamento?')) return;
+    setDeletingId(id);
+    try {
+      await removeMedication(id);
+    } catch {
+      // el error se refleja en medicationsError del store
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Semáforo de stock basado en current_stock y minimum_stock
+  const getStockColor = (m: { current_stock?: number; minimum_stock?: number }) => {
+    const stock = m.current_stock ?? 0;
+    const min = m.minimum_stock ?? 10;
+    if (stock <= 0) return 'red';
+    if (stock <= min) return 'amber';
+    return 'green';
+  };
+
+  const getStockLabel = (m: { current_stock?: number; minimum_stock?: number }) => {
+    const stock = m.current_stock ?? 0;
+    const min = m.minimum_stock ?? 10;
+    if (stock <= 0) return 'Sin stock';
+    if (stock <= min) return `Bajo (${stock})`;
+    return `OK (${stock})`;
   };
 
   return (
     <div>
-      <SectionTitle icon={<Pill size={20} />} title="Medicamentos / Insumos" subtitle="Catálogo de medicamentos y control de stock" />
+      <SectionTitle
+        icon={<Pill size={20} />}
+        title="Medicamentos / Insumos"
+        subtitle="Catálogo de medicamentos y control de stock"
+      />
 
+      {/* Formulario */}
       <form onSubmit={handleSubmit} className="card mb-6 p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Nombre Comercial">
+          <Field label="Nombre Comercial *">
             <TextInput
-              value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              value={form.commercial_name}
+              onChange={(e) => setForm({ ...form, commercial_name: e.target.value })}
               placeholder="ej. Insulina NPH"
+              disabled={saving}
             />
           </Field>
-          <Field label="Fórmula / Principio Activo">
+          <Field label="Principio Activo">
             <TextInput
-              value={form.formula}
-              onChange={(e) => setForm({ ...form, formula: e.target.value })}
-              placeholder="ej. Acetaminofén"
+              value={form.active_ingredient}
+              onChange={(e) => setForm({ ...form, active_ingredient: e.target.value })}
+              placeholder="ej. Insulina isofana"
+              disabled={saving}
             />
           </Field>
-          <Field label="Concentración / Miligramos">
+          <Field label="Concentración">
             <TextInput
-              value={form.concentracion}
-              onChange={(e) => setForm({ ...form, concentracion: e.target.value })}
+              value={form.concentration}
+              onChange={(e) => setForm({ ...form, concentration: e.target.value })}
               placeholder="ej. 500 mg"
+              disabled={saving}
             />
           </Field>
           <Field label="Presentación">
             <Select
-              value={form.presentacion}
-              onChange={(v) => setForm({ ...form, presentacion: v as Presentacion })}
+              value={form.presentation}
+              onChange={(v) => setForm({ ...form, presentation: v })}
               options={PRESENTACIONES}
               placeholder="Seleccionar..."
             />
           </Field>
-          <Field label="Vía de Administración">
+          <Field label="Vía de Administración *">
             <Select
-              value={form.via}
-              onChange={(v) => setForm({ ...form, via: v as ViaAdmin })}
+              value={form.administration_route}
+              onChange={(v) => setForm({ ...form, administration_route: v })}
               options={VIAS}
               placeholder="Seleccionar..."
             />
@@ -137,19 +215,42 @@ function MedicamentosPanel() {
             <TextInput
               type="number"
               min={0}
-              value={form.stock}
-              onChange={(e) => setForm({ ...form, stock: e.target.value })}
+              value={form.current_stock}
+              onChange={(e) => setForm({ ...form, current_stock: e.target.value })}
               placeholder="0"
+              disabled={saving}
+            />
+          </Field>
+          <Field label="Stock Mínimo">
+            <TextInput
+              type="number"
+              min={0}
+              value={form.minimum_stock}
+              onChange={(e) => setForm({ ...form, minimum_stock: e.target.value })}
+              placeholder="10"
+              disabled={saving}
             />
           </Field>
         </div>
 
+        {saveError && (
+          <p className="mt-3 text-sm font-medium text-red-600 dark:text-red-400">{saveError}</p>
+        )}
+
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button type="submit" className="btn-primary">
-            <Save size={16} /> Guardar Medicamento
+          <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
+            {saving
+              ? <><Loader2 size={16} className="animate-spin" /> Guardando...</>
+              : <><Save size={16} /> Guardar Medicamento</>
+            }
           </button>
-          <button type="button" className="btn-ghost">
-            <ScanLine size={16} /> Escanear Caja con OCR / IA
+          <button
+            type="button"
+            onClick={() => fetchMedications()}
+            className="btn-ghost"
+            title="Recargar lista"
+          >
+            <RefreshCw size={16} />
           </button>
           {saved && (
             <span className="animate-fade-in text-sm font-medium text-emerald-600 dark:text-emerald-400">
@@ -159,39 +260,82 @@ function MedicamentosPanel() {
         </div>
       </form>
 
-      {/* Catalog table */}
+      {/* Tabla */}
       <div className="card overflow-hidden">
-        <div className="border-b border-slate-200 px-5 py-3 dark:border-slate-700">
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-700">
           <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Catálogo Guardado ({medicamentos.length})
+            Catálogo ({medications.length})
           </h3>
+          {medicationsLoading && (
+            <Loader2 size={16} className="animate-spin text-slate-400" />
+          )}
         </div>
+
+        {medicationsError && (
+          <div className="px-5 py-3 text-sm text-red-600 dark:text-red-400">
+            Error: {medicationsError} —{' '}
+            <button onClick={() => fetchMedications()} className="underline">
+              reintentar
+            </button>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
-                <th className="px-5 py-3 font-semibold">Nombre</th>
-                <th className="px-5 py-3 font-semibold">Fórmula</th>
+                <th className="px-5 py-3 font-semibold">Nombre Comercial</th>
+                <th className="px-5 py-3 font-semibold">Principio Activo</th>
                 <th className="px-5 py-3 font-semibold">Concentración</th>
                 <th className="px-5 py-3 font-semibold">Presentación</th>
                 <th className="px-5 py-3 font-semibold">Vía</th>
-                <th className="px-5 py-3 font-semibold">Estado Stock</th>
+                <th className="px-5 py-3 font-semibold">Stock</th>
+                <th className="px-5 py-3 font-semibold"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-              {medicamentos.map((m) => (
+              {medications.map((m) => (
                 <tr key={m.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">{m.nombre}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{m.formula}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{m.concentracion}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{m.presentacion}</td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{m.via}</td>
-                  <td className="px-5 py-3"><StockBadge stock={m.stock} /></td>
+                  <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">
+                    {m.commercial_name}
+                  </td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                    {m.active_ingredient ?? '—'}
+                  </td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                    {m.concentration ?? '—'}
+                  </td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                    {m.presentation ?? '—'}
+                  </td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                    {m.administration_route}
+                  </td>
+                  <td className="px-5 py-3">
+                    <Badge color={getStockColor(m) as 'red' | 'amber' | 'green'}>
+                      {getStockLabel(m)}
+                    </Badge>
+                  </td>
+                  <td className="px-5 py-3">
+                    <button
+                      onClick={() => handleDelete(m.id)}
+                      disabled={deletingId === m.id}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                      title="Eliminar medicamento"
+                    >
+                      {deletingId === m.id
+                        ? <Loader2 size={15} className="animate-spin" />
+                        : <Trash2 size={15} />
+                      }
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {medicamentos.length === 0 && <EmptyState message="No hay medicamentos registrados" />}
+          {!medicationsLoading && medications.length === 0 && (
+            <EmptyState message="No hay medicamentos registrados" />
+          )}
         </div>
       </div>
     </div>
@@ -386,112 +530,119 @@ function ResidentesPanel() {
 /* =================== PERSONAL =================== */
 
 function PersonalPanel() {
-  const { personal, addPersonal } = useApp();
-  const [form, setForm] = useState({
-    nombre: '',
-    rol: '' as string,
-    especialidades: [] as string[],
-    turnoPref: '' as string,
-  });
-  const [saved, setSaved] = useState(false);
+  const {
+    staff, staffLoading, staffError,
+    fetchStaff, createStaff, removeStaff,
+    backendUsers, fetchUsers, createUser,
+  } = useApp();
 
-  const toggleEsp = (esp: string) => {
+  const [form, setForm] = useState({
+    full_name: '', email: '', password: '',
+    role: '' as 'NURSE' | 'PHYSICIAN' | '',
+    specialties: [] as string[],
+    preferred_shift: '' as BackendShift | '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [saved, setSaved] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchStaff();
+    if (backendUsers.length === 0) fetchUsers();
+  }, [fetchStaff, fetchUsers, backendUsers.length]);
+
+  const toggleEsp = (esp: string) =>
     setForm((f) => ({
       ...f,
-      especialidades: f.especialidades.includes(esp)
-        ? f.especialidades.filter((x) => x !== esp)
-        : [...f.especialidades, esp],
+      specialties: f.specialties.includes(esp)
+        ? f.specialties.filter((x) => x !== esp)
+        : [...f.specialties, esp],
     }));
+
+  const resetForm = () =>
+    setForm({ full_name: '', email: '', password: '', role: '', specialties: [], preferred_shift: '' });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.full_name || !form.email || !form.password || !form.role) return;
+    setSaving(true); setSaveError('');
+    try {
+      await createUser({ full_name: form.full_name.trim(), email: form.email.trim(), password: form.password, role: form.role, is_active: true });
+      await fetchUsers();
+      const created = backendUsers.find((u) => u.email === form.email.trim());
+      if (created) {
+        await createStaff({ user_id: created.id, specialties: form.specialties.join(', ') || undefined, preferred_shift: form.preferred_shift || undefined });
+      }
+      resetForm(); setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Error al guardar colaborador');
+    } finally { setSaving(false); }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.nombre || !form.rol || !form.turnoPref) return;
-    addPersonal({
-      nombre: form.nombre,
-      rol: form.rol as any,
-      especialidades: form.especialidades,
-      turnoPref: form.turnoPref as any,
-    });
-    setForm({ nombre: '', rol: '', especialidades: [], turnoPref: '' });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  const handleDelete = async (id: string) => {
+    if (!confirm('¿Eliminar este colaborador?')) return;
+    setDeletingId(id);
+    try { await removeStaff(id); } finally { setDeletingId(null); }
   };
+
+  const resolveUser = (userId: string) => backendUsers.find((u) => u.id === userId);
+  const getName  = (s: typeof staff[0]) => s.user?.full_name ?? resolveUser(s.user_id)?.full_name ?? '—';
+  const getRole  = (s: typeof staff[0]) => { const r = s.user?.role ?? resolveUser(s.user_id)?.role; return r === 'PHYSICIAN' ? 'Médico' : r === 'NURSE' ? 'Enfermero/a' : null; };
+  const getRoleColor = (s: typeof staff[0]) => { const r = s.user?.role ?? resolveUser(s.user_id)?.role; return r === 'PHYSICIAN' ? 'blue' : 'green'; };
 
   return (
     <div>
       <SectionTitle icon={<Stethoscope size={20} />} title="Personal / Cuidadores" subtitle="Registro de colaboradores y competencias" />
-
       <form onSubmit={handleSubmit} className="card mb-6 p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Nombre Completo">
-            <TextInput
-              value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              placeholder="ej. Diego Pérez"
-            />
+          <Field label="Nombre Completo *">
+            <TextInput value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="ej. Diego Pérez" disabled={saving} />
           </Field>
-          <Field label="Rol / Puesto">
-            <Select
-              value={form.rol}
-              onChange={(v) => setForm({ ...form, rol: v })}
-              options={ROLES}
-              placeholder="Seleccionar..."
-            />
+          <Field label="Correo Electrónico *">
+            <TextInput type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="usuario@guardiansalud.app" disabled={saving} />
+          </Field>
+          <Field label="Contraseña inicial *">
+            <TextInput type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mínimo 8 caracteres" disabled={saving} />
+          </Field>
+          <Field label="Rol / Puesto *">
+            <Select value={form.role} onChange={(v) => setForm({ ...form, role: v as 'NURSE' | 'PHYSICIAN' })} options={['NURSE', 'PHYSICIAN']} placeholder="Seleccionar..." />
           </Field>
           <Field label="Turno Preferente">
-            <Select
-              value={form.turnoPref}
-              onChange={(v) => setForm({ ...form, turnoPref: v })}
-              options={TURNOS}
-              placeholder="Seleccionar..."
-            />
+            <Select value={form.preferred_shift} onChange={(v) => setForm({ ...form, preferred_shift: v as BackendShift })} options={TURNOS_CONFIG.map((t) => t.key)} placeholder="Seleccionar..." />
           </Field>
         </div>
-
         <div className="mt-4">
           <label className="label-base">Especialidades / Competencias</label>
           <div className="flex flex-wrap gap-2">
             {ESPECIALIDADES_DISPONIBLES.map((esp) => {
-              const active = form.especialidades.includes(esp);
+              const active = form.specialties.includes(esp);
               return (
-                <button
-                  key={esp}
-                  type="button"
-                  onClick={() => toggleEsp(esp)}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                    active
-                      ? 'bg-brand-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'
-                  }`}
-                >
-                  {active ? <X size={12} /> : <Plus size={12} />}
-                  {esp}
+                <button key={esp} type="button" onClick={() => toggleEsp(esp)} disabled={saving}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition ${active ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600'}`}>
+                  {active ? <X size={12} /> : <Plus size={12} />}{esp}
                 </button>
               );
             })}
           </div>
         </div>
-
+        {saveError && <p className="mt-3 text-sm font-medium text-red-600 dark:text-red-400">{saveError}</p>}
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button type="submit" className="btn-primary">
-            <Save size={16} /> Guardar Colaborador
+          <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
+            {saving ? <><Loader2 size={16} className="animate-spin" /> Guardando...</> : <><Save size={16} /> Guardar Colaborador</>}
           </button>
-          {saved && (
-            <span className="animate-fade-in text-sm font-medium text-emerald-600 dark:text-emerald-400">
-              ✓ Colaborador guardado correctamente
-            </span>
-          )}
+          {saved && <span className="animate-fade-in text-sm font-medium text-emerald-600 dark:text-emerald-400">✓ Colaborador guardado correctamente</span>}
         </div>
       </form>
-
-      {/* Table */}
       <div className="card overflow-hidden">
-        <div className="border-b border-slate-200 px-5 py-3 dark:border-slate-700">
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            Colaboradores Registrados ({personal.length})
-          </h3>
+        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3 dark:border-slate-700">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Colaboradores Registrados ({staff.length})</h3>
+          <div className="flex items-center gap-2">
+            {staffLoading && <Loader2 size={16} className="animate-spin text-slate-400" />}
+            <button onClick={() => { fetchStaff(); fetchUsers(); }} className="btn-ghost py-1 text-xs" title="Recargar"><RefreshCw size={14} /></button>
+          </div>
         </div>
+        {staffError && <div className="px-5 py-3 text-sm text-red-600 dark:text-red-400">Error: {staffError} — <button onClick={() => fetchStaff()} className="underline">reintentar</button></div>}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -500,27 +651,29 @@ function PersonalPanel() {
                 <th className="px-5 py-3 font-semibold">Rol</th>
                 <th className="px-5 py-3 font-semibold">Especialidades</th>
                 <th className="px-5 py-3 font-semibold">Turno</th>
+                <th className="px-5 py-3 font-semibold"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
-              {personal.map((p) => (
-                <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                  <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">{p.nombre}</td>
-                  <td className="px-5 py-3"><Badge color="blue">{p.rol}</Badge></td>
+              {staff.map((s) => (
+                <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">{getName(s)}</td>
+                  <td className="px-5 py-3">{getRole(s) ? <Badge color={getRoleColor(s) as 'blue' | 'green'}>{getRole(s)!}</Badge> : <span className="text-xs text-slate-400">—</span>}</td>
                   <td className="px-5 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {p.especialidades.map((e) => (
-                        <Badge key={e} color="slate">{e}</Badge>
-                      ))}
-                      {p.especialidades.length === 0 && <span className="text-xs text-slate-400">—</span>}
-                    </div>
+                    {s.specialties ? <div className="flex flex-wrap gap-1">{s.specialties.split(',').map((e) => <Badge key={e} color="slate">{e.trim()}</Badge>)}</div> : <span className="text-xs text-slate-400">—</span>}
                   </td>
-                  <td className="px-5 py-3"><Badge color="green">{p.turnoPref}</Badge></td>
+                  <td className="px-5 py-3">{s.preferred_shift ? <Badge color="green">{BACKEND_SHIFT_LABEL[s.preferred_shift]}</Badge> : <span className="text-xs text-slate-400">—</span>}</td>
+                  <td className="px-5 py-3">
+                    <button onClick={() => handleDelete(s.id)} disabled={deletingId === s.id}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:hover:bg-red-900/20 dark:hover:text-red-400" title="Eliminar">
+                      {deletingId === s.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {personal.length === 0 && <EmptyState message="No hay colaboradores registrados" />}
+          {!staffLoading && staff.length === 0 && <EmptyState message="No hay colaboradores registrados" />}
         </div>
       </div>
     </div>
