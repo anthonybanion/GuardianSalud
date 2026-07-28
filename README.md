@@ -1,9 +1,10 @@
+<img width="1254" height="1254" alt="Logotipo moderno de salud y seguridad" src="https://github.com/user-attachments/assets/266c3798-8dd8-450a-94af-591617331641" />
 # GuardiánSalud
 
 Sistema web para el **control y seguimiento de medicamentos** en asilos, estancias y centros de cuidado de pacientes. Garantiza un registro preciso de horarios, dosis, uso del medicamento y asignación por paciente, priorizando la **Privacidad desde el Diseño** (*Privacy by Design*).
 
 ---
-## Problema
+## 🎯Problema
 
 En muchos centros de cuidado la administración de medicamentos continúa apoyándose en registros manuales y comunicación entre turnos.
 
