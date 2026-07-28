@@ -7,6 +7,10 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { StaffModule } from './modules/staff/staff.module';
 import { ResidentsModule } from './modules/residents/residents.module';
+import { MedicationsModule } from './modules/medications/medications.module';
+import { TreatmentsModule } from './modules/treatments/treatments.module';
+import { ShiftAssignmentsModule } from './modules/shift-assignments/shift-assignments.module';
+import { DoseLogsModule } from './modules/dose-logs/dose-logs.module';
 
 @Module({
   imports: [
@@ -19,6 +23,10 @@ import { ResidentsModule } from './modules/residents/residents.module';
     UsersModule,
     StaffModule,
     ResidentsModule,
+    MedicationsModule,
+    TreatmentsModule,
+    ShiftAssignmentsModule,
+    DoseLogsModule,
   ],
   controllers: [AppController],
 })
