@@ -1,5 +1,5 @@
 <img width="1089" height="768" alt="LogoGS" src="https://github.com/user-attachments/assets/78c71fe1-6d28-469e-a1e3-4af160425dae" />
---- 
+
 # GuardiánSalud
 
 Sistema web para el **control y seguimiento de medicamentos** en asilos, estancias y centros de cuidado de pacientes. Garantiza un registro preciso de horarios, dosis, uso del medicamento y asignación por paciente, priorizando la **Privacidad desde el Diseño** (*Privacy by Design*).
